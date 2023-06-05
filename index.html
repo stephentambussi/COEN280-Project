@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Property Management System</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+</head>
+
+<body>
+    <h1>Property Management System</h1>
+
+    <div id="main-menu">
+        <h2>Main Menu</h2>
+        <ul>
+            <li><a href="#" id="show-properties-link">Show Properties Available</a></li>
+            <li><a href="#" id="create-lease-link">Create Lease Agreement</a></li>
+            <li><a href="#" id="show-lease-link">Show Lease Agreement</a></li>
+        </ul>
+    </div>
+
+    <div id="content">
+        <!-- Show Properties Available -->
+        <div id="show-properties" style="display: none;">
+            <h2>Properties Available</h2>
+            <div id="properties-list"></div>
+        </div>
+
+        <!-- Create Lease Agreement -->
+        <div id="create-lease" style="display: none;">
+            <h2>Create Lease Agreement</h2>
+            <form id="lease-form">
+                <label for="propertyNumber">Property Number:</label>
+                <input type="text" id="propertyNumber" name="propertyNumber" required><br>
+
+                <label for="renterName">Renter Name:</label>
+                <input type="text" id="renterName" name="renterName" required><br>
+
+                <label for="leaseStart">Lease Start Date:</label>
+                <input type="date" id="leaseStart" name="leaseStart" required><br>
+
+                <label for="leaseEnd">Lease End Date:</label>
+                <input type="date" id="leaseEnd" name="leaseEnd" required><br>
+
+                <label for="renterHomePhone">Renter Home Phone:</label>
+                <input type="text" id="renterHomePhone" name="renterHomePhone" required><br>
+
+                <label for="renterWorkPhone">Renter Work Phone:</label>
+                <input type="text" id="renterWorkPhone" name="renterWorkPhone" required><br>
+
+                <label for="depositAmount">Deposit Amount:</label>
+                <input type="number" id="depositAmount" name="depositAmount" required><br>
+
+                <input type="submit" value="Create Lease Agreement">
+            </form>
+
+            <div id="lease-details"></div>
+        </div>
+
+        <!-- Show Lease Agreement -->
+        <div id="show-lease" style="display: none;">
+            <h2>Show Lease Agreement</h2>
+            <form id="show-lease-form">
+                <label for="showPropertyNumber">Property Number:</label>
+                <input type="text" id="showPropertyNumber" name="showPropertyNumber" required><br>
+
+                <label for="showRenterName">Renter Name:</label>
+                <input type="text" id="showRenterName" name="showRenterName" required><br>
+
+                <input type="submit" value="Show Lease Agreement">
+            </form>
+
+            <div id="show-lease-details"></div>
+        </div>
+    </div>
+
+    <script>
+        $(document).ready(function () {
+            // Show Properties Available
+            $('#show-properties-link').click(function (event) {
+                event.preventDefault();
+                hideAll();
+                $('#show-properties').show();
+
+                $.ajax({
+                    url: 'http://example.com/api/properties-available.php',
+                    method: 'GET',
+                    dataType: 'json',
+                    success: function (response) {
+                        if (response.length > 0) {
+                            var html = '<ul>';
+                            $.each(response, function (index, property) {
+                                html += '<li>Property Number: ' + property.PropertyNumber + '</li>';
+                                html += '<li>Street: ' + property.Street + '</li>';
+                                html += '<li>City: ' + property.City + '</li>';
+                                html += '<li>Zip Code: ' + property.ZipCode + '</li>';
+                                html += '<li>Number of Rooms: ' + property.NumOfRooms + '</li>';
+                                html += '<li>Monthly Rent: ' + property.MonthlyRent + '</li>';
+                                html += '<br>';
+                            });
+                            html += '</ul>';
+                            $('#properties-list').html(html);
+                        } else {
+                            $('#properties-list').html('No properties available.');
+                        }
+                    },
+                    error: function () {
+                        $('#properties-list').html('Error retrieving properties.');
+                    }
+                });
+            });
+
+            // Create Lease Agreement
+            $('#create-lease-link').click(function (event) {
+                event.preventDefault();
+                hideAll();
+                $('#create-lease').show();
+            });
+
+            $('#lease-form').submit(function (event) {
+                event.preventDefault();
+
+                var formData = $(this).serialize();
+
+                $.ajax({
+                    url: 'http://example.com/api/create-lease-agreement.php',
+                    method: 'POST',
+                    data: formData,
+                    dataType: 'json',
+                    success: function (response) {
+                        var html = '';
+                        if (response) {
+                            html += '<p>Lease Document:</p>';
+                            html += '<p>Property Number: ' + response.PropertyNumber + '</p>';
+                            html += '<p>Renter Name: ' + response.RenterName + '</p>';
+                            html += '<p>Lease Start Date: ' + response.LeaseStart + '</p>';
+                            html += '<p>Lease End Date: ' + response.LeaseEnd + '</p>';
+                            html += '<p>Renter Home Phone: ' + response.RenterHomePhone + '</p>';
+                            html += '<p>Renter Work Phone: ' + response.RenterWorkPhone + '</p>';
+                            html += '<p>Deposit Amount: ' + response.DepositAmount + '</p>';
+                        } else {
+                            html = 'Error creating lease agreement.';
+                        }
+                        $('#lease-details').html(html);
+                    },
+                    error: function () {
+                        $('#lease-details').html('Error creating lease agreement.');
+                    }
+                });
+            });
+
+            // Show Lease Agreement
+            $('#show-lease-link').click(function (event) {
+                event.preventDefault();
+                hideAll();
+                $('#show-lease').show();
+            });
+
+            $('#show-lease-form').submit(function (event) {
+                event.preventDefault();
+
+                var formData = $(this).serialize();
+
+                $.ajax({
+                    url: 'http://example.com/api/show-lease-agreement.php',
+                    method: 'POST',
+                    data: formData,
+                    dataType: 'json',
+                    success: function (response) {
+                        var html = '';
+                        if (response) {
+                            html += '<p>Lease Agreement Details:</p>';
+                            html += '<p>Property Number: ' + response.PropertyNumber + '</p>';
+                            html += '<p>Renter Name: ' + response.RenterName + '</p>';
+                            html += '<p>Lease Start Date: ' + response.LeaseStart + '</p>';
+                            html += '<p>Lease End Date: ' + response.LeaseEnd + '</p>';
+                            html += '<p>Renter Home Phone: ' + response.RenterHomePhone + '</p>';
+                            html += '<p>Renter Work Phone: ' + response.RenterWorkPhone + '</p>';
+                            html += '<p>Deposit Amount: ' + response.DepositAmount + '</p>';
+                        } else {
+                            html = 'Lease agreement not found.';
+                        }
+                        $('#show-lease-details').html(html);
+                    },
+                    error: function () {
+                        $('#show-lease-details').html('Error retrieving lease agreement.');
+                    }
+                });
+            });
+
+            // Helper function to hide all content sections
+            function hideAll() {
+                $('#show-properties').hide();
+                $('#create-lease').hide();
+                $('#show-lease').hide();
+            }
+        });
+    </script>
+</body>
+
+</html>
