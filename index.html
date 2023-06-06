@@ -82,7 +82,7 @@
                 $('#show-properties').show();
 
                 $.ajax({
-                    url: 'http://example.com/api/properties-available.php',
+                    url: 'http://127.0.0.1:8000/properties-available',
                     method: 'GET',
                     dataType: 'json',
                     success: function (response) {
@@ -122,7 +122,7 @@
                 var formData = $(this).serialize();
 
                 $.ajax({
-                    url: 'http://example.com/api/create-lease-agreement.php',
+                    url: 'http://127.0.0.1:8000/create-lease-agreement',
                     method: 'POST',
                     data: formData,
                     dataType: 'json',
@@ -161,7 +161,7 @@
                 var formData = $(this).serialize();
 
                 $.ajax({
-                    url: 'http://example.com/api/show-lease-agreement.php',
+                    url: 'http://127.0.0.1:8000show-lease-agreement',
                     method: 'POST',
                     data: formData,
                     dataType: 'json',

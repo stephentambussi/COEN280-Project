@@ -3,12 +3,19 @@ import oracledb
 
 app = Flask(__name__)
 
+#an oracle instant client is needed to connect to the database and run in thick mode
+oracledb.init_oracle_client(lib_dir=r"C:\oracle\instantclient_19_19", config_dir=None, error_url=None, driver_name=None)
+
 # Database configuration
 db_config = {
-    "user": "your_username",
-    "password": "your_password",
-    "dsn": "localhost:1521/ORCL"
+    "user": "c##dylan",
+    "password": "novation",
+    "dsn": "10.0.0.87:1523/XE"
 }
+
+con = oracledb.connect(**db_config)
+
+print(oracledb.is_thin_mode())
 
 # Show Properties Available
 @app.route('/properties-available', methods=['GET'])
@@ -88,4 +95,4 @@ def show_lease_agreement():
         return jsonify(success=False, error="Lease agreement not found.")
 
 if __name__ == '__main__':
-    app.run()
+    app.run(host="localhost", port=8000)
