@@ -1,7 +1,7 @@
 /*  Stephen Tambussi
     COEN280 - Spring 2023
     Transaction 3: Generate a list of rental properties by a specific owner 
-    (where the owner’s name and phone number are entered as input), listed in 
+    (where the owner's name and phone number are entered as input), listed in 
     a StrawberryField branch (the branch name is input).
 */
 

@@ -1,6 +1,6 @@
 /*  Stephen Tambussi
     COEN280 - Spring 2023
-    This program creates the tables for the StrawberryField's Rental
+    This script creates the tables for the StrawberryField's Rental
     Management System from the ER diagrams.
 */
 
