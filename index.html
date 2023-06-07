@@ -4,6 +4,7 @@
 <head>
     <title>Property Management System</title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="js/jsPDF/dist/jspdf.umd.js"></script>
 </head>
 
 <style>
@@ -104,6 +105,8 @@
 
     #properties-list {
         margin-top: 10px;
+        overflow:auto;
+        max-height: 50vh;
     }
 
     #lease-details,
@@ -139,22 +142,22 @@
             <h2>Create Lease Agreement</h2>
             <form id="lease-form">
                 <label for="propertyNumber">Property Number:</label>
-                <input type="text" id="propertyNumber" name="propertyNumber" required><br>
+                <input type="number" id="propertyNumber" name="propertyNumber" required><br>
 
                 <label for="renterName">Renter Name:</label>
                 <input type="text" id="renterName" name="renterName" required><br>
 
                 <label for="leaseStart">Lease Start Date:</label>
-                <input type="date" id="leaseStart" name="leaseStart" required><br>
+                <input type="text" id="leaseStart" name="leaseStart" placeholder="2023-01-01" required><br>
 
                 <label for="leaseEnd">Lease End Date:</label>
-                <input type="date" id="leaseEnd" name="leaseEnd" required><br>
+                <input type="text" id="leaseEnd" name="leaseEnd" required><br>
 
                 <label for="renterHomePhone">Renter Home Phone:</label>
-                <input type="text" id="renterHomePhone" name="renterHomePhone" required><br>
+                <input type="number" id="renterHomePhone" name="renterHomePhone" required><br>
 
                 <label for="renterWorkPhone">Renter Work Phone:</label>
-                <input type="text" id="renterWorkPhone" name="renterWorkPhone" required><br>
+                <input type="number" id="renterWorkPhone" name="renterWorkPhone" required><br>
 
                 <label for="depositAmount">Deposit Amount:</label>
                 <input type="number" id="depositAmount" name="depositAmount" required><br>
@@ -170,7 +173,7 @@
             <h2>Show Lease Agreement</h2>
             <form id="show-lease-form">
                 <label for="showPropertyNumber">Property Number:</label>
-                <input type="text" id="showPropertyNumber" name="showPropertyNumber" required><br>
+                <input type="number" id="showPropertyNumber" name="showPropertyNumber" required><br>
 
                 <label for="showRenterName">Renter Name:</label>
                 <input type="text" id="showRenterName" name="showRenterName" required><br>
@@ -193,7 +196,6 @@
                 $.ajax({
                     url: 'http://127.0.0.1:8000/properties-available',
                     method: 'GET',
-                    dataType: 'json',
                     success: function (response) {
                         if (response.length > 0) {
                             var html = '<ul>';
@@ -228,25 +230,34 @@
             $('#lease-form').submit(function (event) {
                 event.preventDefault();
 
-                var formData = $(this).serialize();
+                // var formData = $(this).serialize();
+                let formData = {
+                    propertyNumber: $('#propertyNumber').val(),
+                    renterName: $('#renterName').val(),
+                    leaseStart: ($('#leaseStart').val()),
+                    leaseEnd: ($('#leaseEnd').val()),
+                    renterHomePhone: $('#renterHomePhone').val(),
+                    renterWorkPhone: $('#renterWorkPhone').val(),
+                    depositAmount: $('#depositAmount').val()
+                }
+                console.log(formData)
 
                 $.ajax({
-                    url: 'localhost:8000/create-lease-agreement',
+                    url: 'http://localhost:8000/create-lease-agreement',
                     method: 'POST',
-                    data: formData,
-                    dataType: 'json',
-
+                    data: JSON.stringify(formData),
+                    contentType: 'application/json',
                     success: function (response) {
                         var html = '';
                         if (response) {
                             html += '<p>Lease Document:</p>';
-                            html += '<p>Property Number: ' + response.PropertyNumber + '</p>';
-                            html += '<p>Renter Name: ' + response.RenterName + '</p>';
-                            html += '<p>Lease Start Date: ' + response.LeaseStart + '</p>';
-                            html += '<p>Lease End Date: ' + response.LeaseEnd + '</p>';
-                            html += '<p>Renter Home Phone: ' + response.RenterHomePhone + '</p>';
-                            html += '<p>Renter Work Phone: ' + response.RenterWorkPhone + '</p>';
-                            html += '<p>Deposit Amount: ' + response.DepositAmount + '</p>';
+                            html += '<p>Property Number: ' + formData.propertyNumber + '</p>';
+                            html += '<p>Renter Name: ' + formData.renterName + '</p>';
+                            html += '<p>Lease Start Date: ' + form.leaseStart + '</p>';
+                            html += '<p>Lease End Date: ' + form.leaseEnd + '</p>';
+                            html += '<p>Renter Home Phone: ' + form.renterHomePhone + '</p>';
+                            html += '<p>Renter Work Phone: ' + form.renterWorkPhone + '</p>';
+                            html += '<p>Deposit Amount: ' + formData.depositAmount + '</p>';
                         } else {
                             html = 'Error creating lease agreement.';
                         }
@@ -268,13 +279,17 @@
             $('#show-lease-form').submit(function (event) {
                 event.preventDefault();
 
-                var formData = $(this).serialize();
+                // var formData = $(this).serialize();
+                let formData = {
+                    showPropertyNumber: $('#showPropertyNumber').val(),
+                    showRenterName: $('#showRenterName').val()
+                }
 
                 $.ajax({
-                    url: 'localhost:8000show-lease-agreement',
+                    url: 'http://localhost:8000/create-lease-agreement',
                     method: 'POST',
-                    data: formData,
-                    dataType: 'json',
+                    data: JSON.stringify(formData),
+                    contentType: 'application/json',
                     success: function (response) {
                         var html = '';
                         if (response) {
@@ -303,6 +318,14 @@
                 $('#create-lease').hide();
                 $('#show-lease').hide();
             }
+
+            //helper function to create pdf
+            function createPdf(data) {
+                var doc = new jsPDF();
+                doc.text(20, 20, 'Hello world!');
+                doc.save('Test.pdf');
+            }
+
         });
     </script>
 </body>
