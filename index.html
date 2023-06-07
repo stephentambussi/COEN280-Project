@@ -122,10 +122,11 @@
                 var formData = $(this).serialize();
 
                 $.ajax({
-                    url: 'http://127.0.0.1:8000/create-lease-agreement',
+                    url: 'localhost:8000/create-lease-agreement',
                     method: 'POST',
                     data: formData,
                     dataType: 'json',
+
                     success: function (response) {
                         var html = '';
                         if (response) {
@@ -161,7 +162,7 @@
                 var formData = $(this).serialize();
 
                 $.ajax({
-                    url: 'http://127.0.0.1:8000show-lease-agreement',
+                    url: 'localhost:8000show-lease-agreement',
                     method: 'POST',
                     data: formData,
                     dataType: 'json',
