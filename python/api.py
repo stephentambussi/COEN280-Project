@@ -47,28 +47,32 @@ def show_properties_available():
 # Create Lease Agreement
 @app.route('/create-lease-agreement', methods=['POST'])
 def create_lease_agreement():
+    if request.method =='POST':
+        print("POST", request.json)
     data = request.json
-    try:
-        cursor.execute("""
-            INSERT INTO LeaseAgreement 
-            (PropertyNumber, RenterName, LeaseStart, LeaseEnd, RenterHomePhone, RenterWorkPhone, DepositAmount)
-            VALUES (:propertyNumber, :renterName, :leaseStart, :leaseEnd, :renterHomePhone, :renterWorkPhone, :depositAmount)
-        """, {
-            "propertyNumber": int(data["propertyNumber"]),
-            "renterName": data["renterName"],
-            "leaseStart": datetime.strptime(data["leaseStart"], "%Y-%m-%d"),
-            # "leaseStart": data["leaseStart"],
-            "leaseEnd": datetime.strptime(data["leaseEnd"], "%Y-%m-%d"),
-            # "leaseEnd": data["leaseEnd"],
-            "renterHomePhone": int(data["renterHomePhone"]),
-            "renterWorkPhone": int(data["renterWorkPhone"]),
-            "depositAmount": int(data["depositAmount"])
-        })
-        con.commit()
-        return jsonify(success=True)
-    except oracledb.DatabaseError as e:
-        error = str(e)
-        return jsonify(success=False, error=error)
+    with oracledb.connect(**db_config) as connection:
+        cursor = connection.cursor()
+        try:
+            cursor.execute("""
+                INSERT INTO LeaseAgreement 
+                (PropertyNumber, RenterName, LeaseStart, LeaseEnd, RenterHomePhone, RenterWorkPhone, DepositAmount)
+                VALUES (:propertyNumber, :renterName, :leaseStart, :leaseEnd, :renterHomePhone, :renterWorkPhone, :depositAmount)
+            """, {
+                "propertyNumber": int(data["propertyNumber"]),
+                "renterName": data["renterName"],
+                "leaseStart": datetime.strptime(data["leaseStart"], "%Y-%m-%d"),
+                # "leaseStart": data["leaseStart"],
+                "leaseEnd": datetime.strptime(data["leaseEnd"], "%Y-%m-%d"),
+                # "leaseEnd": data["leaseEnd"],
+                "renterHomePhone": int(data["renterHomePhone"]),
+                "renterWorkPhone": int(data["renterWorkPhone"]),
+                "depositAmount": int(data["depositAmount"])
+            })
+            connection.commit()
+            return jsonify(showLeaseInfo(data["propertyNumber"], data["renterName"]))
+        except oracledb.DatabaseError as e:
+            error = str(e)
+            return jsonify(success=False, error=error)
 
 # Show Lease Agreement
 @app.route('/show-lease-agreement', methods=['POST'])
@@ -100,6 +104,31 @@ def show_lease_agreement():
         return jsonify(lease_agreement)
     else:
         return jsonify(success=False, error="Lease agreement not found.")
+    
+def showLeaseInfo(propertyId, renterName):
+    with oracledb.connect(**db_config) as connection:
+        cursor = connection.cursor()
+        cursor.execute("""
+            SELECT * FROM LeaseAgreement WHERE PropertyNumber = :propertyNumber AND RenterName = :renterName
+        """, {
+            "propertyNumber": propertyId,
+            "renterName": renterName
+        })
+        row = cursor.fetchone()
+
+    if row:
+        lease_agreement = {
+            "PropertyNumber": row[0],
+            "RenterName": row[1],
+            "LeaseStart": row[2].strftime("%Y-%m-%d"),
+            "LeaseEnd": row[3].strftime("%Y-%m-%d"),
+            "RenterHomePhone": row[4],
+            "RenterWorkPhone": row[5],
+            "DepositAmount": row[6]
+        }
+        return lease_agreement
+    else:
+        return None
 
 if __name__ == '__main__':
     app.run(host="localhost", port=8000)

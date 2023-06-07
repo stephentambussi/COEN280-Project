@@ -253,10 +253,10 @@
                             html += '<p>Lease Document:</p>';
                             html += '<p>Property Number: ' + formData.propertyNumber + '</p>';
                             html += '<p>Renter Name: ' + formData.renterName + '</p>';
-                            html += '<p>Lease Start Date: ' + form.leaseStart + '</p>';
-                            html += '<p>Lease End Date: ' + form.leaseEnd + '</p>';
-                            html += '<p>Renter Home Phone: ' + form.renterHomePhone + '</p>';
-                            html += '<p>Renter Work Phone: ' + form.renterWorkPhone + '</p>';
+                            html += '<p>Lease Start Date: ' + formData.leaseStart + '</p>';
+                            html += '<p>Lease End Date: ' + formData.leaseEnd + '</p>';
+                            html += '<p>Renter Home Phone: ' + formData.renterHomePhone + '</p>';
+                            html += '<p>Renter Work Phone: ' + formData.renterWorkPhone + '</p>';
                             html += '<p>Deposit Amount: ' + formData.depositAmount + '</p>';
                         } else {
                             html = 'Error creating lease agreement.';
@@ -286,7 +286,7 @@
                 }
 
                 $.ajax({
-                    url: 'http://localhost:8000/create-lease-agreement',
+                    url: 'http://localhost:8000/show-lease-agreement',
                     method: 'POST',
                     data: JSON.stringify(formData),
                     contentType: 'application/json',
