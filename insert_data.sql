@@ -1,4 +1,4 @@
-/*  Stephen Tambussi
+/*  Stephen Tambussi & Dylan Hoover
     COEN280 - Spring 2023
     This script inserts data for testing.
 */

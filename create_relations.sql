@@ -1,4 +1,4 @@
-/*  Stephen Tambussi
+/*  Stephen Tambussi & Dylan Hoover
     COEN280 - Spring 2023
     This script creates the tables for the StrawberryField's Rental
     Management System from the ER diagrams.
@@ -25,12 +25,11 @@ DROP TABLE LeaseAgreement CASCADE CONSTRAINTS PURGE;
     Supervisor(<EmployeeID>, EmpName, Phone, StartDate, JobDesignation, *BranchNumber*, *EmployeeID*)
     Staff(<EmployeeID>, EmpName, Phone, StartDate, JobDesignation, *BranchNumber*)
 
-    -- Use trigger to only allow supervisor to manage 3 or less properties
     RentalProperty(<PropertyNumber>, Address(Composite), NumOfRooms, MonthlyRent, Status, DateAvailable, *SupervisorID*, *OwnerName*)
 
     PropertyOwner(<OwnerName>, PermanentAddress(Composite), PhoneNumber)
 
-    LeaseAgreement(<PropertyNumber>, <RenterName>, LeaseStart, LeaseEnd, RenterHomePhone, 
+    LeaseAgreement(<PropertyNumber, RenterName>, LeaseStart, LeaseEnd, RenterHomePhone, 
                     RenterWorkPhone, DepositAmount
                     )
 
@@ -142,7 +141,7 @@ CREATE TRIGGER Supervisor_PropertyLimit
     END;
 /
 
--- New Lease, RentalProperty update
+-- New Lease, RentalProperty status update
 CREATE TRIGGER PropertyStatus_Update
     AFTER INSERT ON LeaseAgreement
     FOR EACH ROW
