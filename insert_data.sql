@@ -73,3 +73,8 @@ INSERT INTO LeaseAgreement VALUES(5, 'Kevin', '10-OCT-22', '10-JUL-23', 85129873
 INSERT INTO LeaseAgreement VALUES(6, 'Brandon', '29-SEP-22', '10-MAY-23', 8512987341, 2003005000, 600);
 
 INSERT INTO LeaseAgreement VALUES(9, 'Dylan', '29-SEP-22', '12-MAY-23', 8512987342, 2003006000, 700);
+
+-- CONSTRAINT/TRIGGER TESTING
+-- INSERT INTO LeaseAgreement VALUES(3, 'FakeName', '10-JUN-23', '11-JUN-23', 0000000000, 0000000000, 100);
+-- INSERT INTO RentalProperty VALUES(11, '33 Fake Road', 'Fake City', 11111,
+--                             1, 1000, 'available', '10-JUN-23', 110, 'Isabelle');

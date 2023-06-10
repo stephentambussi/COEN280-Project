@@ -1,0 +1,776 @@
+Start of Output File
+SQL> 
+SQL> @create_relations.sql
+SQL> /*  Stephen Tambussi & Dylan Hoover
+SQL>    COEN280 - Spring 2023
+SQL>    This script creates the tables for the StrawberryField's Rental
+SQL>    Management System from the ER diagrams.
+SQL>*/
+SQL> 
+SQL> -- FOR TESTING: completely reset/delete all tables and start from scratch
+SQL> DROP TABLE Branch CASCADE CONSTRAINTS PURGE;
+
+Table BRANCH dropped.
+
+SQL> DROP TABLE Manager CASCADE CONSTRAINTS PURGE;
+
+Table MANAGER dropped.
+
+SQL> DROP TABLE Supervisor CASCADE CONSTRAINTS PURGE;
+
+Table SUPERVISOR dropped.
+
+SQL> DROP TABLE Staff CASCADE CONSTRAINTS PURGE;
+
+Table STAFF dropped.
+
+SQL> DROP TABLE PropertyOwner CASCADE CONSTRAINTS PURGE;
+
+Table PROPERTYOWNER dropped.
+
+SQL> DROP TABLE RentalProperty CASCADE CONSTRAINTS PURGE;
+
+Table RENTALPROPERTY dropped.
+
+SQL> DROP TABLE LeaseAgreement CASCADE CONSTRAINTS PURGE;
+
+Table LEASEAGREEMENT dropped.
+
+SQL> 
+SQL> /*  Scratch Work
+SQL>
+SQL>    <name> = primary key
+SQL>    *name* = foreign key
+SQL>
+SQL>    Branch(<BranchNumber>, Phone, Street, City, ZipCode)
+SQL>
+SQL>    -- JobDesignation is redundant
+SQL>    Manager(<EmployeeID>, EmpName, Phone, StartDate, JobDesignation, *BranchNumber*)
+SQL>    Supervisor(<EmployeeID>, EmpName, Phone, StartDate, JobDesignation, *BranchNumber*, *EmployeeID*)
+SQL>    Staff(<EmployeeID>, EmpName, Phone, StartDate, JobDesignation, *BranchNumber*)
+SQL>
+SQL>    RentalProperty(<PropertyNumber>, Address(Composite), NumOfRooms, MonthlyRent, Status, DateAvailable, *SupervisorID*, *OwnerName*)
+SQL>
+SQL>    PropertyOwner(<OwnerName>, PermanentAddress(Composite), PhoneNumber)
+SQL>
+SQL>    LeaseAgreement(<PropertyNumber, RenterName>, LeaseStart, LeaseEnd, RenterHomePhone, 
+SQL>                    RenterWorkPhone, DepositAmount
+SQL>                    )
+SQL>
+SQL>*/
+SQL> 
+SQL> CREATE TABLE Branch 
+  2  (
+  3      BranchNumber INTEGER PRIMARY KEY,
+  4      Phone INTEGER NOT NULL UNIQUE,
+  5      Street varchar2(30),
+  6      City varchar2(30),
+  7      ZipCode INTEGER
+  8  );
+
+Table BRANCH created.
+
+SQL> 
+SQL> CREATE TABLE Manager 
+  2  (
+  3      EmployeeID INTEGER PRIMARY KEY,
+  4      EmpName varchar(30),
+  5      Phone INTEGER NOT NULL UNIQUE,
+  6      StartDate date,
+  7      JobDesignation varchar(30),
+  8      BranchNumber INTEGER REFERENCES Branch(BranchNumber)
+  9  );
+
+Table MANAGER created.
+
+SQL> 
+SQL> CREATE TABLE Supervisor 
+  2  (
+  3      EmployeeID INTEGER PRIMARY KEY,
+  4      EmpName varchar(30),
+  5      Phone INTEGER NOT NULL UNIQUE,
+  6      StartDate date,
+  7      JobDesignation varchar(30),
+  8      BranchNumber INTEGER REFERENCES Branch(BranchNumber),
+  9      ManagerID INTEGER REFERENCES Manager(EmployeeID)
+ 10  );
+
+Table SUPERVISOR created.
+
+SQL> 
+SQL> CREATE TABLE Staff 
+  2  (
+  3      EmployeeID INTEGER PRIMARY KEY,
+  4      EmpName varchar(30),
+  5      Phone INTEGER NOT NULL UNIQUE,
+  6      StartDate date,
+  7      JobDesignation varchar(30),
+  8      BranchNumber INTEGER REFERENCES Branch(BranchNumber)
+  9  );
+
+Table STAFF created.
+
+SQL> 
+SQL> CREATE TABLE PropertyOwner
+  2  (
+  3      OwnerName varchar2(30) PRIMARY KEY,
+  4      Street varchar2(30),
+  5      City varchar2(30),
+  6      ZipCode INTEGER,
+  7      PhoneNumber INTEGER NOT NULL UNIQUE
+  8  );
+
+Table PROPERTYOWNER created.
+
+SQL> 
+SQL> /*  Constraints:
+SQL>    - Supervisor can only manage 3 properties or less
+SQL>    - With new lease, change Status to unavailable
+SQL>    - With new lease, increase rent by 10% (20% if only 6 months)
+SQL>*/
+SQL> CREATE TABLE RentalProperty
+  2  (
+  3      PropertyNumber INTEGER PRIMARY KEY,
+  4      Street varchar2(30),
+  5      City varchar2(30),
+  6      ZipCode INTEGER,
+  7      NumOfRooms INTEGER,
+  8      MonthlyRent INTEGER,
+  9      Status varchar2(30),
+ 10      DateAvailable date,
+ 11      SupervisorID INTEGER REFERENCES Supervisor(EmployeeID),
+ 12      OwnerName varchar2(30) REFERENCES PropertyOwner(OwnerName)
+ 13  );
+
+Table RENTALPROPERTY created.
+
+SQL> 
+SQL> /*  Constraints:
+SQL>    - lease should be >= 6 months and <= 12 months 
+SQL>    - 6 month lease = 10% increase in rent
+SQL>*/
+SQL> CREATE TABLE LeaseAgreement
+  2  (
+  3      PropertyNumber INTEGER REFERENCES RentalProperty(PropertyNumber),
+  4      RenterName varchar2(30),
+  5      LeaseStart date,
+  6      LeaseEnd date, 
+  7      RenterHomePhone INTEGER,
+  8      RenterWorkPhone INTEGER,
+  9      DepositAmount INTEGER,
+ 10      PRIMARY KEY (PropertyNumber, RenterName),
+ 11      CONSTRAINT lease_duration CHECK(
+ 12          MONTHS_BETWEEN(LeaseEnd, LeaseStart) >= 6 
+ 13          and MONTHS_BETWEEN(LeaseEnd, LeaseStart) <= 12
+ 14          )
+ 15  );
+
+Table LEASEAGREEMENT created.
+
+SQL> 
+SQL> -- Supervisor property constraint
+SQL> CREATE TRIGGER Supervisor_PropertyLimit
+  2      BEFORE INSERT OR UPDATE OF SupervisorID ON RentalProperty
+  3      FOR EACH ROW
+  4      DECLARE
+  5          property_count INTEGER;
+  6      BEGIN
+  7          SELECT COUNT(*)
+  8          INTO property_count
+  9          FROM RentalProperty
+ 10          WHERE SupervisorID = :New.SupervisorID;
+ 11          IF property_count >= 3
+ 12          THEN
+ 13              raise_application_error(-20001, 'Supervisor can only manage 3 or less properties');
+ 14          END IF;
+ 15      END;
+ 16  /
+
+Trigger SUPERVISOR_PROPERTYLIMIT compiled
+
+SQL> 
+SQL> -- New Lease, RentalProperty status update
+SQL> CREATE TRIGGER PropertyStatus_Update
+  2      AFTER INSERT ON LeaseAgreement
+  3      FOR EACH ROW
+  4      BEGIN
+  5          UPDATE RentalProperty
+  6          SET Status = 'unavailable'
+  7          WHERE PropertyNumber = :New.PropertyNumber;
+  8      END;
+  9  /
+
+Trigger PROPERTYSTATUS_UPDATE compiled
+
+SQL> 
+SQL> -- Rent increase trigger
+SQL> CREATE OR REPLACE TRIGGER update_rentalproperty_rent
+  2      AFTER INSERT ON LeaseAgreement
+  3      FOR EACH ROW
+  4      DECLARE
+  5          v_rent_increase NUMBER;
+  6      BEGIN
+  7          SELECT MonthlyRent * 0.1
+  8          INTO v_rent_increase
+  9          FROM RentalProperty
+ 10          WHERE PropertyNumber = :New.PropertyNumber;
+ 11  
+ 12          UPDATE RentalProperty
+ 13          SET MonthlyRent = MonthlyRent + v_rent_increase
+ 14          WHERE PropertyNumber = :New.PropertyNumber;
+ 15  
+ 16          IF MONTHS_BETWEEN(:New.LeaseEnd, :New.LeaseStart) = 6 THEN
+ 17              UPDATE RentalProperty
+ 18              SET MonthlyRent = MonthlyRent + v_rent_increase
+ 19              WHERE PropertyNumber = :New.PropertyNumber;
+ 20          END IF;
+ 21      END;
+ 22  /
+
+Trigger UPDATE_RENTALPROPERTY_RENT compiled
+
+SQL> /
+SQL> 
+SQL> @insert_data.sql
+SQL> /*  Stephen Tambussi & Dylan Hoover
+SQL>    COEN280 - Spring 2023
+SQL>    This script inserts data for testing.
+SQL>*/
+SQL> 
+SQL> INSERT INTO Branch VALUES(1, 5556781821, '269 Washington St', 'Santa Clara', 95050);
+
+1 row inserted.
+
+SQL> INSERT INTO Branch VALUES(2, 5556661001, '98 Westmont Ave', 'Haddon Heights', 08050);
+
+1 row inserted.
+
+SQL> INSERT INTO Branch VALUES(3, 6071231051, '67 Ranger Road', 'Dallas', 75001);
+
+1 row inserted.
+
+SQL> 
+SQL> -- Branch 1 Managers
+SQL> INSERT INTO Manager VALUES(100, 'Dan', 8005002000, '19-AUG-10', 'Manager', 1);
+
+1 row inserted.
+
+SQL> INSERT INTO Manager VALUES(101, 'Dave', 8005002001, '19-AUG-13', 'Manager', 1);
+
+1 row inserted.
+
+SQL> 
+SQL> -- Branch 2 Managers
+SQL> INSERT INTO Manager VALUES(200, 'Jack', 8005002002, '19-FEB-15', 'Manager', 2);
+
+1 row inserted.
+
+SQL> 
+SQL> -- Branch 3 Managers
+SQL> INSERT INTO Manager VALUES(300, 'Alex', 8005002003, '19-JUL-10', 'Manager', 3);
+
+1 row inserted.
+
+SQL> INSERT INTO Manager VALUES(301, 'Will', 8005002004, '19-SEP-12', 'Manager', 3);
+
+1 row inserted.
+
+SQL> 
+SQL> -- Branch 1 Supervisors & Staff
+SQL> INSERT INTO Supervisor VALUES(110, 'Joe', 8005002005, '19-AUG-11', 'Supervisor', 1, 100);
+
+1 row inserted.
+
+SQL> INSERT INTO Supervisor VALUES(111, 'David', 8005002006, '19-JUN-11', 'Supervisor', 1, 100);
+
+1 row inserted.
+
+SQL> INSERT INTO Supervisor VALUES(112, 'Sarah', 8005002007, '19-JUN-17', 'Supervisor', 1, 101);
+
+1 row inserted.
+
+SQL> INSERT INTO Staff VALUES(113, 'Julia', 8005002007, '19-JUN-18', 'Staff', 1);
+
+1 row inserted.
+
+SQL> 
+SQL> -- Branch 2 Supervisors & Staff
+SQL> INSERT INTO Supervisor VALUES(210, 'Jeff', 8005002008, '20-JUN-20', 'Supervisor', 2, 200);
+
+1 row inserted.
+
+SQL> INSERT INTO Supervisor VALUES(211, 'Patrick', 8005002009, '19-JUN-21', 'Supervisor', 2, 200);
+
+1 row inserted.
+
+SQL> 
+SQL> -- Branch 3 Supervisors & Staff
+SQL> INSERT INTO Supervisor VALUES(310, 'Jim', 8005002010, '20-MAY-20', 'Supervisor', 3, 300);
+
+1 row inserted.
+
+SQL> INSERT INTO Supervisor VALUES(311, 'Patricia', 8005002011, '19-MAY-21', 'Supervisor', 3, 301);
+
+1 row inserted.
+
+SQL> 
+SQL> INSERT INTO PropertyOwner VALUES('Bill', '101 Elm Street', 'Santa Clara', 95050, 8002005000);
+
+1 row inserted.
+
+SQL> INSERT INTO PropertyOwner VALUES('Tim', '333 Elk Ave', 'San Jose', 95055, 8002005001);
+
+1 row inserted.
+
+SQL> INSERT INTO PropertyOwner VALUES('Mac', '821 Mount Vernon', 'Haddon Heights', 08051, 8002005002);
+
+1 row inserted.
+
+SQL> INSERT INTO PropertyOwner VALUES('Eustace', '67 Star Ave', 'Dallas', 75001, 8002005003);
+
+1 row inserted.
+
+SQL> INSERT INTO PropertyOwner VALUES('Isabelle', '60 Texas Road', 'Austin', 75020, 8002005004);
+
+1 row inserted.
+
+SQL> 
+SQL> 
+SQL> -- Branch 1 Properties
+SQL> INSERT INTO RentalProperty VALUES(1, '500 El Camino Real', 'Santa Clara', 95050,
+  2                              2, 5000, 'available', '19-AUG-22', 110, 'Bill');
+
+1 row inserted.
+
+SQL> INSERT INTO RentalProperty VALUES(2, '505 El Camino Real', 'Santa Clara', 95050,
+  2                              3, 5500, 'available', '10-MAY-23', 110, 'Bill');
+
+1 row inserted.
+
+SQL> INSERT INTO RentalProperty VALUES(3, '102 Lafayette', 'San Jose', 95030,
+  2                              3, 4500, 'available', '10-JUN-23', 110, 'Tim');
+
+1 row inserted.
+
+SQL> INSERT INTO RentalProperty VALUES(4, '103 Lafayette', 'San Jose', 95030,
+  2                              2, 3000, 'available', '10-JUL-23', 111, 'Tim');
+
+1 row inserted.
+
+SQL> INSERT INTO RentalProperty VALUES(5, '104 Lafayette', 'San Jose', 95030,
+  2                              2, 3000, 'available', '11-JUL-23', 112, 'Tim');
+
+1 row inserted.
+
+SQL> 
+SQL> -- Branch 2 Properties
+SQL> INSERT INTO RentalProperty VALUES(6, '104 Mount Vernon', 'Haddon Heights', 08051,
+  2                              5, 3000, 'available', '11-MAY-23', 210, 'Mac');
+
+1 row inserted.
+
+SQL> INSERT INTO RentalProperty VALUES(7, '108 Mount Vernon', 'Haddon Heights', 08051,
+  2                              3, 2500, 'available', '14-MAY-23', 211, 'Mac');
+
+1 row inserted.
+
+SQL> 
+SQL> -- Branch 3 Properties
+SQL> INSERT INTO RentalProperty VALUES(8, '1 Ranger Road', 'Dallas', 75001,
+  2                              3, 2500, 'available', '13-MAY-23', 310, 'Eustace');
+
+1 row inserted.
+
+SQL> INSERT INTO RentalProperty VALUES(9, '2 Ranger Road', 'Dallas', 75001,
+  2                              4, 3200, 'available', '13-MAY-23', 310, 'Eustace');
+
+1 row inserted.
+
+SQL> INSERT INTO RentalProperty VALUES(10, '41 Texas Road', 'Austin', 75021,
+  2                              4, 4100, 'available', '20-MAY-23', 311, 'Isabelle');
+
+1 row inserted.
+
+SQL> 
+SQL> -- Lease Agreements
+SQL> INSERT INTO LeaseAgreement VALUES(1, 'Steve', '20-SEP-21', '15-AUG-22', 8512987340, 2003004000, 500);
+
+1 row inserted.
+
+SQL> INSERT INTO LeaseAgreement VALUES(2, 'Steve', '20-SEP-22', '09-MAY-23', 8512987340, 2003004000, 600);
+
+1 row inserted.
+
+SQL> INSERT INTO LeaseAgreement VALUES(5, 'Kevin', '10-OCT-22', '10-JUL-23', 8512987350, 2003001000, 600);
+
+1 row inserted.
+
+SQL> 
+SQL> INSERT INTO LeaseAgreement VALUES(6, 'Brandon', '29-SEP-22', '10-MAY-23', 8512987341, 2003005000, 600);
+
+1 row inserted.
+
+SQL> 
+SQL> INSERT INTO LeaseAgreement VALUES(9, 'Dylan', '29-SEP-22', '12-MAY-23', 8512987342, 2003006000, 700);
+
+1 row inserted.
+
+SQL> 
+SQL> -- CONSTRAINT/TRIGGER TESTING
+SQL> -- INSERT INTO LeaseAgreement VALUES(3, 'FakeName', '10-JUN-23', '11-JUN-23', 0000000000, 0000000000, 100);
+SQL> -- INSERT INTO RentalProperty VALUES(11, '33 Fake Road', 'Fake City', 11111,
+SQL> --                             1, 1000, 'available', '10-JUN-23', 110, 'Isabelle');
+SQL> /
+SQL> 
+SQL> @transaction1.sql
+SQL> /*  Stephen Tambussi & Dylan Hoover
+SQL>    COEN280 - Spring 2023
+SQL>    Transaction 1: Generate a list of rental properties available for a specific branch (where the name of 
+SQL>    the branch is entered as input).
+SQL>*/
+SQL> 
+SQL> SET VERIFY OFF
+SQL> 
+SQL> ACCEPT branchNum NUMBER FORMAT '9999' PROMPT 'Enter Branch Number: '
+SQL> 
+SQL> PROMPT "List of Available Properties for Branch &branchNum"
+List of Available Properties for Branch 1
+SQL> 
+SQL> SELECT RentalProperty.PropertyNumber AS "Property Number", 
+  2      RentalProperty.Street || ', ' || RentalProperty.City || ', ' || RentalProperty.ZipCode AS "Address", 
+  3      RentalProperty.NumOfRooms AS "Number of Rooms", TO_CHAR(RentalProperty.MonthlyRent, 'L9,999.99') AS "Monthly Rent", 
+  4      TO_CHAR(RentalProperty.DateAvailable, 'DD-MON-YYYY') AS "Date Available"
+  5  FROM Branch
+  6  INNER JOIN Supervisor ON Branch.BranchNumber = Supervisor.BranchNumber
+  7  INNER JOIN RentalProperty ON Supervisor.EmployeeID = RentalProperty.SupervisorID
+  8  WHERE Branch.BranchNumber = &branchNum and RentalProperty.Status = 'available';
+
+Property Number Address                                                                                                  Number of Rooms Monthly Rent        Date Available      
+--------------- -------------------------------------------------------------------------------------------------------- --------------- ------------------- --------------------
+              3 102 Lafayette, San Jose, 95030                                                                                         3           $4,500.00 10-JUN-2023         
+              4 103 Lafayette, San Jose, 95030                                                                                         2           $3,000.00 10-JUL-2023         
+
+SQL> /
+SQL> 
+SQL> @transaction2.sql
+SQL> /*  Stephen Tambussi & Dylan Hoover
+SQL>    COEN280 - Spring 2023
+SQL>    Transaction 2: Generate a list of managers and for each manager, 
+SQL>    a list of supervisors under the manager and supervisors and the 
+SQL>    properties (with addresses) the supervisors supervise.
+SQL>*/
+SQL> 
+SQL> SET VERIFY OFF
+SQL> 
+SQL> PROMPT "List of Managers, Supervisors, and Properties"
+List of Managers, Supervisors, and Properties
+SQL> 
+SQL> SELECT Manager.EmpName AS "Manager Name", Supervisor.EmpName AS "Supervisor Name", RentalProperty.PropertyNumber AS "Property Number", 
+  2  RentalProperty.Street || ', ' || RentalProperty.City || ', ' || RentalProperty.ZipCode AS "Address"
+  3  FROM Manager
+  4  LEFT JOIN Supervisor ON Manager.EmployeeID = Supervisor.ManagerID
+  5  LEFT JOIN RentalProperty ON Supervisor.EmployeeID = RentalProperty.SupervisorID
+  6  ORDER BY Manager.EmpName, Supervisor.EmpName;
+
+Manager Name                   Supervisor Name                Property Number Address                                                                                                 
+------------------------------ ------------------------------ --------------- --------------------------------------------------------------------------------------------------------
+Alex                           Jim                                          9 2 Ranger Road, Dallas, 75001                                                                            
+Alex                           Jim                                          8 1 Ranger Road, Dallas, 75001                                                                            
+Dan                            David                                        4 103 Lafayette, San Jose, 95030                                                                          
+Dan                            Joe                                          1 500 El Camino Real, Santa Clara, 95050                                                                  
+Dan                            Joe                                          2 505 El Camino Real, Santa Clara, 95050                                                                  
+Dan                            Joe                                          3 102 Lafayette, San Jose, 95030                                                                          
+Dave                           Sarah                                        5 104 Lafayette, San Jose, 95030                                                                          
+Jack                           Jeff                                         6 104 Mount Vernon, Haddon Heights, 8051                                                                  
+Jack                           Patrick                                      7 108 Mount Vernon, Haddon Heights, 8051                                                                  
+Will                           Patricia                                    10 41 Texas Road, Austin, 75021                                                                            
+
+10 rows selected. 
+
+SQL> /
+SQL> 
+SQL> @transaction3.sql
+SQL> /*  Stephen Tambussi & Dylan Hoover
+SQL>    COEN280 - Spring 2023
+SQL>    Transaction 3: Generate a list of rental properties by a specific owner 
+SQL>    (where the owner's name and phone number are entered as input), listed in 
+SQL>    a StrawberryField branch (the branch name is input).
+SQL>*/
+SQL> 
+SQL> SET VERIFY OFF
+SQL> 
+SQL> ACCEPT ownerName CHAR FORMAT 'A20' PROMPT 'Enter Property Owner''s Name: '
+SQL> ACCEPT ownerPhone NUMBER FORMAT '9999999999' PROMPT 'Enter Property Owner''s Phone Number: '
+SQL> ACCEPT branchNum NUMBER FORMAT '9999' PROMPT 'Enter Branch Number: '
+SQL> 
+SQL> PROMPT "Rental Properties owned by &ownerName in Branch &branchNum"
+Rental Properties owned by Tim in Branch 1
+SQL> 
+SQL> SELECT RentalProperty.PropertyNumber AS "Property Number", 
+  2  RentalProperty.Street || ', ' || RentalProperty.City || ', ' || RentalProperty.ZipCode AS "Address",
+  3  RentalProperty.NumOfRooms AS "Number of Rooms", TO_CHAR(RentalProperty.MonthlyRent, 'L9,999.99') AS "Monthly Rent", 
+  4  RentalProperty.Status AS "Availability Status", TO_CHAR(RentalProperty.DateAvailable, 'DD-MON-YYYY') AS "Date Available"
+  5  FROM Branch
+  6  INNER JOIN Supervisor ON Branch.BranchNumber = Supervisor.BranchNumber
+  7  INNER JOIN RentalProperty ON Supervisor.EmployeeID = RentalProperty.SupervisorID
+  8  INNER JOIN PropertyOwner ON RentalProperty.OwnerName = PropertyOwner.OwnerName
+  9  WHERE Branch.BranchNumber = &branchNum AND PropertyOwner.OwnerName = '&ownerName' AND PropertyOwner.PhoneNumber = &ownerPhone;
+
+Property Number Address                                                                                                  Number of Rooms Monthly Rent        Availability Status            Date Available      
+--------------- -------------------------------------------------------------------------------------------------------- --------------- ------------------- ------------------------------ --------------------
+              3 102 Lafayette, San Jose, 95030                                                                                         3           $4,500.00 available                      10-JUN-2023         
+              4 103 Lafayette, San Jose, 95030                                                                                         2           $3,000.00 available                      10-JUL-2023         
+              5 104 Lafayette, San Jose, 95030                                                                                         2           $3,300.00 unavailable                    11-JUL-2023         
+
+SQL> /
+SQL> 
+SQL> @transaction4.sql
+SQL> /*  Stephen Tambussi & Dylan Hoover
+SQL>    COEN280 - Spring 2023
+SQL>    Transaction 4: Show a listing of properties available, where the properties 
+SQL>    should satisfy the criteria (city, no of rooms and/or range for rent given as input).
+SQL>*/
+SQL> 
+SQL> SET VERIFY OFF
+SQL> 
+SQL> ACCEPT city CHAR FORMAT 'A20' PROMPT 'Enter City: '
+SQL> ACCEPT numOfRooms NUMBER FORMAT '99' PROMPT 'Enter Number of Rooms: '
+SQL> ACCEPT lowRent NUMBER FORMAT '99999' PROMPT 'Enter minimum of Rent: '
+SQL> ACCEPT highRent NUMBER FORMAT '99999' PROMPT 'Enter maximum of Rent: '
+SQL> 
+SQL> PROMPT "Available Properties in &city with &numOfRooms Rooms and Rent Range: $&lowRent-$&highRent"
+Available Properties in San Jose with 2 Rooms and Rent Range: $1000-$5000
+SQL> 
+SQL> SELECT PropertyNumber AS "Property Number", 
+  2  Street || ', ' || City || ', ' || ZipCode AS "Address", 
+  3  NumOfRooms AS "Number of Rooms", TO_CHAR(MonthlyRent, 'L9,999.99') AS "Monthly Rent", 
+  4  TO_CHAR(DateAvailable, 'DD-MON-YYYY') AS "Date Available", SupervisorID AS "Supervisor ID", 
+  5  OwnerName AS "Owner's Name"
+  6  FROM RentalProperty
+  7  WHERE RentalProperty.City = '&city' AND RentalProperty.NumOfRooms = &numOfRooms 
+  8  AND RentalProperty.MonthlyRent >= &lowRent AND RentalProperty.MonthlyRent <= &highRent
+  9  AND RentalProperty.Status = 'available';
+
+Property Number Address                                                                                                  Number of Rooms Monthly Rent        Date Available       Supervisor ID Owner's Name                  
+--------------- -------------------------------------------------------------------------------------------------------- --------------- ------------------- -------------------- ------------- ------------------------------
+              4 103 Lafayette, San Jose, 95030                                                                                         2           $3,000.00 10-JUL-2023                    111 Tim                           
+
+SQL> /
+SQL> 
+SQL> @transaction5.sql
+SQL> /*  Stephen Tambussi & Dylan Hoover
+SQL>    COEN280 - Spring 2023
+SQL>    Transaction 5: Show the number of properties available for rent by branch.
+SQL>*/
+SQL> 
+SQL> SET VERIFY OFF
+SQL> 
+SQL> PROMPT "Number of Available Properties for each Branch"
+Number of Available Properties for each Branch
+SQL> 
+SQL> SELECT b.BranchNumber AS "Branch Number", b.City AS "Branch City",
+  2  COUNT(CASE WHEN rp.Status = 'available' THEN 1 END) AS "Number of Available Properties"
+  3  FROM Branch b
+  4  LEFT JOIN Supervisor s ON b.BranchNumber = s.BranchNumber
+  5  LEFT JOIN RentalProperty rp ON s.EmployeeID = rp.SupervisorID
+  6  GROUP BY b.BranchNumber, b.City;
+
+Branch Number Branch City                    Number of Available Properties
+------------- ------------------------------ ------------------------------
+            1 Santa Clara                                                 2
+            2 Haddon Heights                                              1
+            3 Dallas                                                      2
+
+SQL> /
+SQL> 
+SQL> @transaction6.sql
+SQL> /*  Stephen Tambussi & Dylan Hoover
+SQL>    COEN280 - Spring 2023
+SQL>    Transaction 6: Create a lease agreement (See section 1.1). The information to be 
+SQL>    entered into this agreement can be input via a Graphical User interface (See section 2.1)
+SQL>    or from the command line.
+SQL>    NOTE: this script is simply for capturing the output for the spool file.
+SQL>    The GUI implements the same functionality.
+SQL>*/
+SQL> 
+SQL> SET VERIFY OFF
+SQL> 
+SQL> ACCEPT propertyNumber NUMBER FORMAT '9999' PROMPT 'Enter Property Number for Lease: '
+SQL> ACCEPT renterName CHAR FORMAT 'A20' PROMPT 'Enter your Name for the Lease: '
+SQL> ACCEPT leaseStart DATE FORMAT 'DD-MON-YY' PROMPT 'Enter Start Date for Lease: '
+SQL> ACCEPT leaseEnd DATE FORMAT 'DD-MON-YY' PROMPT 'Enter End Date for Lease: '
+SQL> ACCEPT renterHomePhone NUMBER FORMAT '9999999999' PROMPT 'Enter your Home Phone Number: '
+SQL> ACCEPT renterWorkPhone NUMBER FORMAT '9999999999' PROMPT 'Enter your Work Phone Number: '
+SQL> ACCEPT depositAmount NUMBER FORMAT '9999' PROMPT 'Enter the Deposit Amount for the Lease: '
+SQL> 
+SQL> INSERT INTO LeaseAgreement VALUES(&propertyNumber, '&renterName', '&leaseStart', '&leaseEnd', &renterHomePhone,
+  2  &renterWorkPhone, &depositAmount);
+
+1 row inserted.
+
+SQL> 
+SQL> PROMPT "Lease Agreement Successfully Created"
+Lease Agreement Successfully Created
+SQL> /
+SQL> 
+SQL> @transaction7.sql
+SQL> /*  Stephen Tambussi & Dylan Hoover
+SQL>    COEN280 - Spring 2023
+SQL>    Transaction 7: Show a lease agreement for a renter (name or phone number is entered as input).
+SQL>    NOTE: this script is simply for capturing the output for the spool file.
+SQL>    The GUI implements the same functionality.
+SQL>*/
+SQL> 
+SQL> SET VERIFY OFF
+SQL> 
+SQL> ACCEPT renterName CHAR FORMAT 'A20' PROMPT 'Enter your Name for the Lease: '
+SQL> ACCEPT renterHomePhone NUMBER FORMAT '9999999999' PROMPT 'Enter your Home Phone Number: '
+SQL> 
+SQL> PROMPT "Lease(s) for &renterName"
+Lease(s) for Stephen
+SQL> 
+SQL> COLUMN propertyNum FORMAT 9999 JUSTIFY CENTER HEADING 'Property Number'
+SQL> COLUMN renterName FORMAT A20 JUSTIFY CENTER HEADING 'Name'
+SQL> COLUMN homePhone FORMAT 9999999999 JUSTIFY CENTER HEADING 'Home Phone'
+SQL> COLUMN workPhone FORMAT 9999999999 JUSTIFY CENTER HEADING 'Work Phone'
+SQL> COLUMN startDate FORMAT A20 JUSTIFY CENTER HEADING 'Start Date'
+SQL> COLUMN endDate FORMAT A20 JUSTIFY CENTER HEADING 'End Date'
+SQL> COLUMN deposit FORMAT $9,999.99 JUSTIFY CENTER HEADING 'Deposit Amount'
+SQL> COLUMN rent FORMAT $99,999.99 JUSTIFY CENTER HEADING 'Monthly Rent'
+SQL> 
+SQL> SELECT la.PropertyNumber AS propertyNum, la.RenterName AS renterName, la.RenterHomePhone AS homePhone, 
+  2  la.RenterWorkPhone AS workPhone, TO_CHAR(la.LeaseStart, 'DD-MON-YYYY') AS startDate, 
+  3  TO_CHAR(la.LeaseEnd, 'DD-MON-YYYY') AS endDate, la.DepositAmount AS deposit, rp.MonthlyRent AS rent
+  4  FROM LeaseAgreement la
+  5  LEFT JOIN RentalProperty rp ON la.PropertyNumber = rp.PropertyNumber
+  6  WHERE la.RenterName = '&renterName' AND la.RenterHomePhone = &renterHomePhone;
+
+Property Number         Name         Home Phone  Work Phone       Start Date            End Date       Deposit Amount Monthly Rent
+--------------- -------------------- ----------- ----------- -------------------- -------------------- -------------- ------------
+              3 Stephen               8562987000  8562988000 20-JUN-2023          10-MAY-2024             $450.00       $4,950.00 
+
+SQL> /
+SQL> 
+SQL> @transaction8.sql
+SQL> /*  Stephen Tambussi & Dylan Hoover
+SQL>    COEN280 - Spring 2023
+SQL>    Transaction 8: Show the renters who rented more than one rental property.
+SQL>*/
+SQL> 
+SQL> SET VERIFY OFF
+SQL> 
+SQL> PROMPT "List of Renters who have rented more than one property"
+List of Renters who have rented more than one property
+SQL> 
+SQL> SELECT RenterName AS "Renter's Name"
+  2  FROM LeaseAgreement
+  3  GROUP BY RenterName
+  4  HAVING COUNT(DISTINCT PropertyNumber) > 1;
+
+Renter's Name                 
+------------------------------
+Steve
+
+SQL> /
+SQL> 
+SQL> @transaction9.sql
+SQL> /*  Stephen Tambussi & Dylan Hoover
+SQL>    COEN280 - Spring 2023
+SQL>    Transaction 9: Show the average rent for properties managed by this Rental Management System. 
+SQL>    You can take the average of all the properties that are rented out and those available for 
+SQL>    rent in that town.
+SQL>*/
+SQL> 
+SQL> SET VERIFY OFF
+SQL> 
+SQL> PROMPT "Average Rent for all properties in each City"
+Average Rent for all properties in each City
+SQL> 
+SQL> COLUMN PropertyCity FORMAT A20 JUSTIFY CENTER HEADING 'City'
+SQL> COLUMN AverageRent FORMAT $99,999.99 JUSTIFY CENTER HEADING 'Average Rent'
+SQL> 
+SQL> SELECT City AS PropertyCity, TO_CHAR(AVG(MonthlyRent), 'L9,999.99') AS AverageRent
+  2  FROM RentalProperty
+  3  GROUP BY City;
+
+        City            Average Rent    
+-------------------- -------------------
+Santa Clara                    $5,775.00
+San Jose                       $3,750.00
+Haddon Heights                 $2,900.00
+Dallas                         $3,010.00
+Austin                         $4,100.00
+
+SQL> 
+SQL> PROMPT "Average Rent across every City"
+Average Rent across every City
+SQL> 
+SQL> SELECT TO_CHAR(AVG(MonthlyRent), 'L9,999.99') AS AverageRent
+  2  FROM RentalProperty;
+
+   Average Rent    
+-------------------
+          $3,872.00
+
+SQL> /
+SQL> 
+SQL> @transaction10.sql
+SQL> /*  Stephen Tambussi & Dylan Hoover
+SQL>    COEN280 - Spring 2023
+SQL>    Transaction 10: Show the names and addresses of properties whose leases will expire in the next two 
+SQL>    months (from the current date).
+SQL>*/
+SQL> 
+SQL> SET VERIFY OFF
+SQL> 
+SQL> PROMPT "List of Leases expiring in the next two months from today"
+List of Leases expiring in the next two months from today
+SQL> 
+SQL> COLUMN TODAY NEW_VALUE report_date
+SQL> SELECT TO_CHAR(SYSDATE, 'fmMonth DD, YYYY') AS "Today's Date"
+  2  FROM DUAL;
+
+Today's Date                                 
+---------------------------------------------
+June 9, 2023
+
+SQL> 
+SQL> SELECT p.PropertyNumber AS "Property Number", p.Street || ', ' || p.City || ', ' || p.ZipCode AS "Address",
+  2         l.RenterName AS "Renter's Name",
+  3         TO_CHAR(l.LeaseEnd, 'DD-MON-YYYY') AS "Lease End Date"
+  4  FROM LeaseAgreement l
+  5  JOIN RentalProperty p ON l.PropertyNumber = p.PropertyNumber
+  6  WHERE ABS(MONTHS_BETWEEN(SYSDATE, l.LeaseEnd)) <= 2 AND MONTHS_BETWEEN(l.LeaseEnd, SYSDATE) > 0;
+
+Property Number Address                                                                                                  Renter's Name                  Lease End Date      
+--------------- -------------------------------------------------------------------------------------------------------- ------------------------------ --------------------
+              5 104 Lafayette, San Jose, 95030                                                                           Kevin                          10-JUL-2023                 
+
+SQL> /
+SQL> 
+SQL> @transaction11.sql
+SQL> /*  Stephen Tambussi & Dylan Hoover
+SQL>    COEN280 - Spring 2023
+SQL>    Transaction 11: Show the money that is earned by the rental agency per month. This is calculated as 
+SQL>    10% of the rent of the properties that are currently rented.
+SQL>*/
+SQL> 
+SQL> SET VERIFY OFF
+SQL> 
+SQL> PROMPT "StrawberryField Rental Management Monthly Profits"
+StrawberryField Rental Management Monthly Profits
+SQL> 
+SQL> COLUMN MonthlyProfit FORMAT $99,999.99 JUSTIFY center HEADING 'Monthly Profit from Rented Properties'
+SQL> 
+SQL> SELECT TO_CHAR(SUM(MonthlyRent * 0.1), 'L9,999.99') AS MonthlyProfit
+  2  FROM RentalProperty
+  3  WHERE Status = 'unavailable';
+
+Monthly Profit from Rented Properties
+-------------------------------------
+          $2,662.00
+
+SQL> /
+SQL> 
+SQL> SET ECHO OFF
+End of Output File

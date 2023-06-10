@@ -5,12 +5,11 @@
 
 SET VERIFY OFF
 
-ACCEPT branchNum NUMBER FORMAT '9999' PROMPT 'Enter Branch Number: '
+PROMPT "Number of Available Properties for each Branch"
 
-PROMPT "Number of Available Properties for Branch &branchNum"
-
-SELECT COUNT(CASE WHEN Status = 'available' THEN 1 END) AS "Number of Available Properties"
-FROM Branch
-INNER JOIN Supervisor ON Branch.BranchNumber = Supervisor.BranchNumber
-INNER JOIN RentalProperty ON Supervisor.EmployeeID = RentalProperty.SupervisorID
-WHERE Branch.BranchNumber = &branchNum;
+SELECT b.BranchNumber AS "Branch Number", b.City AS "Branch City",
+COUNT(CASE WHEN rp.Status = 'available' THEN 1 END) AS "Number of Available Properties"
+FROM Branch b
+LEFT JOIN Supervisor s ON b.BranchNumber = s.BranchNumber
+LEFT JOIN RentalProperty rp ON s.EmployeeID = rp.SupervisorID
+GROUP BY b.BranchNumber, b.City;

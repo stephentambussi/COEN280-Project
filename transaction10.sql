@@ -17,4 +17,4 @@ SELECT p.PropertyNumber AS "Property Number", p.Street || ', ' || p.City || ', '
        TO_CHAR(l.LeaseEnd, 'DD-MON-YYYY') AS "Lease End Date"
 FROM LeaseAgreement l
 JOIN RentalProperty p ON l.PropertyNumber = p.PropertyNumber
-WHERE MONTHS_BETWEEN(SYSDATE, l.LeaseEnd) <= 2 and MONTHS_BETWEEN(l.LeaseEnd, SYSDATE) >= 0;
+WHERE ABS(MONTHS_BETWEEN(SYSDATE, l.LeaseEnd)) <= 2 AND MONTHS_BETWEEN(l.LeaseEnd, SYSDATE) > 0;
